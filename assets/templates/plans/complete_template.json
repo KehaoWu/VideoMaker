@@ -1,0 +1,289 @@
+{
+  "meta_info": {
+    "plan_version": "2.0",
+    "source_image": "assets/input/images/example.png",
+    "video_title": "示例视频标题",
+    "total_duration": 30.0,
+    "video_resolution": {
+      "width": 1920,
+      "height": 1080
+    },
+    "source_image_size": {
+      "width": 1920,
+      "height": 1080
+    }
+  },
+  "cutting_plan": {
+    "source_image": {
+      "file_path": "assets/input/images/example.png",
+      "width": 1920,
+      "height": 1080
+    },
+    "total_slices": 3,
+    "regions": [
+      {
+        "region_id": "region_1",
+        "region_name": "标题区域",
+        "description": "图片顶部的标题文字区域",
+        "coordinates": {
+          "x": 100,
+          "y": 50,
+          "width": 1720,
+          "height": 200
+        },
+        "output_path": null
+      },
+      {
+        "region_id": "region_2", 
+        "region_name": "内容区域",
+        "description": "图片中间的主要内容区域",
+        "coordinates": {
+          "x": 100,
+          "y": 300,
+          "width": 1720,
+          "height": 600
+        },
+        "output_path": null
+      },
+      {
+        "region_id": "region_3",
+        "region_name": "底部区域", 
+        "description": "图片底部的补充信息区域",
+        "coordinates": {
+          "x": 100,
+          "y": 950,
+          "width": 1720,
+          "height": 130
+        },
+        "output_path": null
+      }
+    ]
+  },
+  "text_to_video_plan": {
+    "total_videos": 2,
+    "videos": [
+      {
+        "video_id": "bg_video_1",
+        "description": "背景视频1 - 科技感动态背景",
+        "prompt": "科技感十足的动态背景，蓝色粒子效果，轻微的波动和光效",
+        "duration": 15.0,
+        "style": "realistic",
+        "resolution": [1920, 1080],
+        "output_path": null,
+        "status": "pending"
+      },
+      {
+        "video_id": "bg_video_2", 
+        "description": "背景视频2 - 简约几何图形",
+        "prompt": "简约的几何图形动画，渐变色彩变化，平滑的形状变换",
+        "duration": 15.0,
+        "style": "artistic",
+        "resolution": [1920, 1080],
+        "output_path": null,
+        "status": "pending"
+      }
+    ]
+  },
+  "narration_script": {
+    "total_segments": 3,
+    "segments": [
+      {
+        "segment_id": "narration_1",
+        "text": "欢迎观看我们的演示视频，今天我们将为您介绍一个令人兴奋的新产品。",
+        "estimated_duration": 5.0,
+        "speaking_rate": "normal",
+        "emotion": "professional",
+        "actual_duration": null,
+        "audio_file_path": null
+      },
+      {
+        "segment_id": "narration_2",
+        "text": "这个产品具有创新的设计理念和强大的功能特性，能够满足您的各种需求。",
+        "estimated_duration": 10.0,
+        "speaking_rate": "normal",
+        "emotion": "professional",
+        "actual_duration": null,
+        "audio_file_path": null
+      },
+      {
+        "segment_id": "narration_3",
+        "text": "感谢您的观看，如果您有任何问题，请随时联系我们。",
+        "estimated_duration": 5.0,
+        "speaking_rate": "normal",
+        "emotion": "professional", 
+        "actual_duration": null,
+        "audio_file_path": null
+      }
+    ]
+  },
+  "video_composition": {
+    "timeline": {
+      "total_duration": 30.0,
+      "layer_count": 4,
+      "segments": [
+        {
+          "segment_id": "bg_layer",
+          "start_time": 0.0,
+          "end_time": 30.0,
+          "duration": 30.0,
+          "layer": 0,
+          "content_type": "video",
+          "content_path": "bg_video_1.mp4",
+          "metadata": {
+            "description": "背景视频层",
+            "z_index": 0
+          }
+        },
+        {
+          "segment_id": "title_layer",
+          "start_time": 0.0,
+          "end_time": 10.0,
+          "duration": 10.0,
+          "layer": 1,
+          "content_type": "image",
+          "content_path": "slice_region_1_标题区域.png",
+          "metadata": {
+            "description": "标题图层",
+            "z_index": 1
+          }
+        },
+        {
+          "segment_id": "content_layer",
+          "start_time": 5.0,
+          "end_time": 25.0,
+          "duration": 20.0,
+          "layer": 2,
+          "content_type": "image",
+          "content_path": "slice_region_2_内容区域.png",
+          "metadata": {
+            "description": "内容图层",
+            "z_index": 2
+          }
+        },
+        {
+          "segment_id": "footer_layer",
+          "start_time": 20.0,
+          "end_time": 30.0,
+          "duration": 10.0,
+          "layer": 3,
+          "content_type": "image",
+          "content_path": "slice_region_3_底部区域.png",
+          "metadata": {
+            "description": "底部图层",
+            "z_index": 3
+          }
+        }
+      ]
+    },
+    "visual_effects": [
+      {
+        "effect_id": "title_fade_in",
+        "effect_type": "fade_in",
+        "target_layer": 1,
+        "start_time": 0.0,
+        "duration": 1.0,
+        "parameters": {
+          "opacity_start": 0.0,
+          "opacity_end": 1.0
+        }
+      },
+      {
+        "effect_id": "content_fade_in",
+        "effect_type": "fade_in",
+        "target_layer": 2,
+        "start_time": 5.0,
+        "duration": 1.0,
+        "parameters": {
+          "opacity_start": 0.0,
+          "opacity_end": 1.0
+        }
+      },
+      {
+        "effect_id": "footer_fade_in",
+        "effect_type": "fade_in",
+        "target_layer": 3,
+        "start_time": 20.0,
+        "duration": 1.0,
+        "parameters": {
+          "opacity_start": 0.0,
+          "opacity_end": 1.0
+        }
+      }
+    ],
+    "background_track": {
+      "audio_tracks": [
+        {
+          "track_id": "narration_track",
+          "track_type": "narration",
+          "audio_file_path": "combined_narration.wav",
+          "start_time": 0.0,
+          "duration": 30.0,
+          "volume": 0.8,
+          "fade_in": 0.5,
+          "fade_out": 0.5
+        },
+        {
+          "track_id": "background_music",
+          "track_type": "background",
+          "audio_file_path": "background_music.mp3",
+          "start_time": 0.0,
+          "duration": 30.0,
+          "volume": 0.3,
+          "fade_in": 2.0,
+          "fade_out": 2.0
+        }
+      ],
+      "master_volume": 1.0
+    },
+    "output_settings": {
+      "format": "mp4",
+      "video_codec": "h264",
+      "audio_codec": "aac",
+      "bitrate": "5M",
+      "quality": 95,
+      "fps": 30
+    },
+    "composition_strategy": "layered_timeline"
+  },
+  "processing_workflow": {
+    "step1": {
+      "name": "图片切割",
+      "enabled": true,
+      "config": {
+        "use_ai_analysis": true,
+        "output_format": "png"
+      }
+    },
+    "step2": {
+      "name": "音频生成",
+      "enabled": true,
+      "config": {
+        "voice_service": "tts",
+        "output_format": "wav"
+      }
+    },
+    "step3": {
+      "name": "时间轴重计算",
+      "enabled": true,
+      "config": {
+        "auto_adjust_timing": true
+      }
+    },
+    "step4": {
+      "name": "文生视频生成",
+      "enabled": true,
+      "config": {
+        "video_service": "video_api",
+        "quality": "high"
+      }
+    },
+    "step5": {
+      "name": "视频合成",
+      "enabled": true,
+      "config": {
+        "composition_engine": "ffmpeg",
+        "hardware_acceleration": true
+      }
+    }
+  }
+} 

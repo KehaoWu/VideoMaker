@@ -1,0 +1,273 @@
+# VideoMaker 配置文件示例
+# 复制此文件为 config.yaml 并修改相应的配置值
+
+# ==================== API 配置 ====================
+
+# Claude API 配置 (用于图片分析和智能切割)
+claude:
+  api_key: "${CLAUDE_API_KEY}"  # 从环境变量获取，或直接填写API密钥
+  base_url: "https://api.anthropic.com"  # Claude API 基础URL
+  model: "claude-3-sonnet-20240229"  # 使用的Claude模型
+  timeout: 60  # API请求超时时间（秒）
+  max_retries: 3  # 最大重试次数
+
+# 视频生成API 配置
+video:
+  api_key: "${VIDEO_API_KEY}"  # 从环境变量获取视频API密钥
+  base_url: "https://api.video-service.com"  # 视频生成服务基础URL
+  timeout: 300  # 视频生成超时时间（秒）
+  max_retries: 2  # 最大重试次数
+
+# TTS API 配置 (语音合成)
+tts:
+  api_key: "${TTS_API_KEY}"  # TTS服务API密钥
+  base_url: "https://api.tts-service.com"  # TTS服务基础URL
+  voice: "zh-CN-XiaoxiaoNeural"  # 默认语音
+  speed: 1.0  # 语速 (0.5-2.0)
+  pitch: 0  # 音调 (-50 到 50)
+
+# ==================== 路径配置 ====================
+
+paths:
+  # 默认输入图片路径
+  default_image_path: "assets/sample_infographic.png"
+  
+  # 输出目录配置
+  output_dir: "output"
+  temp_dir: "temp"
+  logs_dir: "logs"
+  
+  # 各步骤输出子目录
+  cutting_output_dir: "temp/step1_cutting"
+  audio_output_dir: "temp/step2_audio"
+  video_output_dir: "temp/step4_video"
+  composition_output_dir: "temp/composition"
+  
+  # 最终视频输出目录
+  final_video_dir: "output/final_videos"
+
+# ==================== 处理配置 ====================
+
+# 图片处理配置
+image_processing:
+  # 支持的图片格式
+  supported_formats:
+    - ".jpg"
+    - ".jpeg"
+    - ".png"
+    - ".gif"
+    - ".webp"
+  
+  # 图片大小限制
+  max_size: 10485760  # 10MB (字节)
+  max_width: 4096     # 最大宽度
+  max_height: 4096    # 最大高度
+  
+  # 输出质量设置
+  output_quality: 95  # JPEG质量 (1-100)
+  
+  # 切割设置
+  min_region_size: 50  # 最小切割区域大小 (像素)
+  max_cuts: 10         # 最大切割数量
+
+# 视频生成配置
+video_generation:
+  # 文生视频模型配置
+  text_to_video:
+    default_model: "text-to-video-v1"
+    available_models:
+      - "text-to-video-v1"
+      - "text-to-video-v2"
+      - "high-quality-t2v"
+    
+    # 生成参数
+    resolution: "1024x576"  # 分辨率
+    fps: 24                 # 帧率
+    duration: 5             # 默认时长（秒）
+    quality: "high"         # 质量设置: low, medium, high
+  
+  # 图片转视频模型配置
+  image_to_video:
+    default_model: "image-to-video-v1"
+    available_models:
+      - "image-to-video-v1"
+      - "high-quality-i2v"
+    
+    # 生成参数
+    motion_strength: 0.7    # 运动强度 (0-1)
+    camera_motion: "smooth" # 相机运动: static, smooth, dynamic
+  
+  # 通用设置
+  max_wait_time: 600      # 最大等待时间（秒）
+  check_interval: 10      # 状态检查间隔（秒）
+  max_scenes: 5           # 最大生成场景数
+  max_concurrent: 2       # 最大并发生成数
+
+# 音频生成配置
+audio_generation:
+  # TTS设置
+  default_voice: "zh-CN-XiaoxiaoNeural"
+  available_voices:
+    - "zh-CN-XiaoxiaoNeural"  # 晓晓 (女性)
+    - "zh-CN-YunxiNeural"     # 云希 (男性)
+    - "zh-CN-YunyangNeural"   # 云扬 (男性)
+  
+  # 音频参数
+  sample_rate: 22050      # 采样率
+  bit_depth: 16           # 位深度
+  format: "wav"           # 输出格式: wav, mp3
+  
+  # 语音设置
+  speed: 1.0              # 语速 (0.5-2.0)
+  pitch: 0                # 音调 (-50 到 50)
+  volume: 80              # 音量 (0-100)
+  
+  # 高级设置
+  add_silence: true       # 是否在段落间添加静音
+  silence_duration: 0.5   # 静音时长（秒）
+
+# 视频合成配置
+video_composition:
+  # 输出设置
+  resolution: "1920x1080"  # 最终视频分辨率
+  fps: 30                  # 帧率
+  bitrate: "5000k"         # 码率
+  codec: "h264"            # 编码器
+  
+  # 视觉效果
+  transition_duration: 0.5  # 转场时长（秒）
+  fade_in_duration: 0.3     # 淡入时长（秒）
+  fade_out_duration: 0.3    # 淡出时长（秒）
+  
+  # 字幕设置
+  subtitle_font: "Arial"
+  subtitle_size: 24
+  subtitle_color: "#FFFFFF"
+  subtitle_position: "bottom"
+  
+  # 背景音乐
+  background_music:
+    enabled: false
+    volume: 0.3          # 背景音乐音量 (0-1)
+    fade_in: 2.0         # 背景音乐淡入时长（秒）
+    fade_out: 2.0        # 背景音乐淡出时长（秒）
+
+# ==================== 工作流配置 ====================
+
+workflow:
+  # 步骤执行配置
+  parallel_execution: false  # 是否并行执行可并行的步骤
+  continue_on_error: false   # 出错时是否继续执行
+  
+  # 步骤超时设置
+  step_timeouts:
+    step1_image_cutting: 120     # 图片切割超时（秒）
+    step2_audio_generation: 300  # 音频生成超时（秒）
+    step3_timeline_calc: 30      # 时间轴计算超时（秒）
+    step4_text_to_video: 600     # 文生视频超时（秒）
+    step5_video_composition: 300 # 视频合成超时（秒）
+  
+  # 重试配置
+  retry_settings:
+    max_retries: 2
+    retry_delay: 5  # 重试间隔（秒）
+    exponential_backoff: true
+
+# ==================== 日志配置 ====================
+
+logging:
+  # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+  
+  # 日志格式
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # 日志文件配置
+  file:
+    enabled: true
+    filename: "logs/videomaker.log"
+    max_size: "10MB"      # 单个日志文件最大大小
+    backup_count: 5       # 保留的日志文件数量
+  
+  # 控制台日志配置
+  console:
+    enabled: true
+    level: "INFO"
+  
+  # 特定模块的日志级别
+  loggers:
+    "apis.claude_api": "DEBUG"
+    "apis.video_api": "INFO"
+    "steps": "INFO"
+
+# ==================== 开发与测试配置 ====================
+
+development:
+  # 开发模式设置
+  debug: false
+  mock_apis: false  # 是否使用模拟API (用于测试)
+  
+  # 性能分析
+  profiling:
+    enabled: false
+    output_dir: "logs/profiling"
+
+testing:
+  # 测试数据目录
+  test_data_dir: "tests/data"
+  test_output_dir: "tests/output"
+  
+  # 测试用图片
+  test_image_filename: "test_image_for_video.png"
+  
+  # 测试提示词
+  test_prompts:
+    image_to_video:
+      - "图片中的红色方块开始缓慢旋转，背景保持不变"
+      - "绿色圆形轻微放大缩小，产生呼吸效果"
+      - "黄色三角形左右摇摆，像钟摆一样运动"
+    
+    text_to_video:
+      - "一只可爱的小猫在阳光明媚的花园里追逐蝴蝶，画面温馨治愈"
+      - "科技感十足的未来城市，霓虹灯闪烁，飞行汽车穿梭其中"
+      - "平静的湖面上，一只天鹅优雅地游过，夕阳西下，画面唯美"
+
+# ==================== 缓存配置 ====================
+
+cache:
+  # 缓存配置
+  enabled: true
+  cache_dir: "temp/cache"
+  
+  # 各类缓存设置
+  image_analysis_cache:
+    enabled: true
+    ttl: 86400  # 缓存时间（秒），24小时
+  
+  audio_cache:
+    enabled: true
+    ttl: 3600   # 1小时
+  
+  video_cache:
+    enabled: false  # 视频文件较大，默认不缓存
+    ttl: 1800       # 30分钟
+
+# ==================== 监控与告警配置 ====================
+
+monitoring:
+  # 性能监控
+  performance:
+    enabled: false
+    metrics_file: "logs/performance.json"
+  
+  # 资源监控
+  resources:
+    enabled: false
+    check_interval: 60  # 检查间隔（秒）
+    memory_threshold: 0.8  # 内存使用阈值
+    disk_threshold: 0.9    # 磁盘使用阈值
+  
+  # 告警配置
+  alerts:
+    enabled: false
+    webhook_url: ""  # 告警Webhook地址 

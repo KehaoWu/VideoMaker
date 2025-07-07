@@ -1,0 +1,195 @@
+{
+  "content_overview": "这是一张关于投资收益目标设置的信息图，主题为《投资真相100问》系列中的一个问题。图片通过数据图表展示了不同股债配比组合的历史收益表现，包括年化收益率、年化波动率和最大回撤情况，并通过三个要点总结了投资配置的核心理念。",
+  "video_structure": {
+    "total_duration": "120秒",
+    "intro_duration": "15秒",
+    "main_content_duration": "90秒",
+    "outro_duration": "15秒"
+  },
+  "cutting_plan": [
+    {
+      "slice_id": 1,
+      "description": "标题区域：《投资真相100问》和主要问题标题",
+      "coordinates": [0, 0, 487, 200],
+      "content_type": "标题文字",
+      "importance": "高"
+    },
+    {
+      "slice_id": 2,
+      "description": "数据图表：不同股债配比组合的收益率对比柱状图",
+      "coordinates": [0, 200, 487, 680],
+      "content_type": "数据图表",
+      "importance": "高"
+    },
+    {
+      "slice_id": 3,
+      "description": "真相1：股票和债券投资组合的基本介绍",
+      "coordinates": [0, 680, 487, 950],
+      "content_type": "文字说明",
+      "importance": "高"
+    },
+    {
+      "slice_id": 4,
+      "description": "真相2：股债配比与风险收益的关系",
+      "coordinates": [0, 950, 487, 1180],
+      "content_type": "文字说明",
+      "importance": "高"
+    },
+    {
+      "slice_id": 5,
+      "description": "真相3：投资目标设定的建议",
+      "coordinates": [0, 1180, 487, 1410],
+      "content_type": "文字说明",
+      "importance": "高"
+    },
+    {
+      "slice_id": 6,
+      "description": "底部免责声明和品牌标识",
+      "coordinates": [0, 1410, 487, 1600],
+      "content_type": "免责声明",
+      "importance": "低"
+    }
+  ],
+  "scene_allocation": [
+    {
+      "scene_id": 1,
+      "slice_id": 1,
+      "display_type": "静态图片+动画",
+      "duration": "15秒",
+      "transition": "淡入效果",
+      "narration_focus": "介绍主题：投资要设定多少收益目标才算合理"
+    },
+    {
+      "scene_id": 2,
+      "slice_id": 2,
+      "display_type": "图片+动画",
+      "duration": "30秒",
+      "transition": "推拉镜头",
+      "narration_focus": "详细解读各种股债配比的收益率、波动率和最大回撤数据"
+    },
+    {
+      "scene_id": 3,
+      "slice_id": 3,
+      "display_type": "静态图片+动画",
+      "duration": "20秒",
+      "transition": "滑动切换",
+      "narration_focus": "解释股票债券作为投资组合的基础知识"
+    },
+    {
+      "scene_id": 4,
+      "slice_id": 4,
+      "display_type": "静态图片+动画",
+      "duration": "25秒",
+      "transition": "渐变过渡",
+      "narration_focus": "说明股债配比与风险收益的正相关关系"
+    },
+    {
+      "scene_id": 5,
+      "slice_id": 5,
+      "display_type": "静态图片+动画",
+      "duration": "25秒",
+      "transition": "缩放效果",
+      "narration_focus": "强调根据个人风险承受能力设定合理投资目标的重要性"
+    },
+    {
+      "scene_id": 6,
+      "slice_id": 6,
+      "display_type": "静态图片",
+      "duration": "5秒",
+      "transition": "淡出效果",
+      "narration_focus": "结束语和风险提示"
+    }
+  ],
+  "content_composition": {
+    "composition_strategy": "混合编排",
+    "description": "将切片图片作为主要内容载体，文生视频作为动态增强元素",
+    "cutting_content_usage": {
+      "静态展示": "切片图片直接作为视频帧显示，配合缩放、平移等动画效果",
+      "动画增强": "对切片图片添加渐现、高亮、标注等动效",
+      "图片序列": "多个切片按时间轴依次或叠加显示"
+    },
+    "text_to_video_integration": {
+      "插入方式": "在指定时间点插入文生视频片段",
+      "叠加方式": "文生视频作为背景，切片图片叠加在前景",
+      "过渡方式": "通过转场效果在图片和视频间切换"
+    },
+    "timeline_mapping": [
+      {
+        "time_range": "0-15秒",
+        "primary_content": "切片1 (标题区域)",
+        "secondary_content": null,
+        "composition_type": "静态图片+动画"
+      },
+      {
+        "time_range": "15-30秒", 
+        "primary_content": "切片2 (数据图表)",
+        "secondary_content": "文生视频1 (市场波动动画)",
+        "composition_type": "图片+背景视频"
+      },
+      {
+        "time_range": "30-50秒",
+        "primary_content": "切片3 (真相1)",
+        "secondary_content": "文生视频2 (投资组合平衡)",
+        "composition_type": "叠加展示"
+      },
+      {
+        "time_range": "50-75秒",
+        "primary_content": "切片4 (真相2)",
+        "secondary_content": "文生视频3 (风险收益关系)",
+        "composition_type": "动态过渡"
+      },
+      {
+        "time_range": "75-100秒",
+        "primary_content": "切片5 (真相3)",
+        "secondary_content": "文生视频4 (投资决策)",
+        "composition_type": "画中画"
+      },
+      {
+        "time_range": "100-120秒",
+        "primary_content": "切片6 (免责声明)",
+        "secondary_content": null,
+        "composition_type": "静态显示"
+      }
+    ],
+    "technical_implementation": {
+      "layer_structure": {
+        "background_layer": "文生视频或纯色背景",
+        "content_layer": "切片图片主内容",
+        "overlay_layer": "动画效果、标注、转场"
+      },
+      "coordinate_mapping": "cutting_plan中的coordinates直接用于定位和裁剪",
+      "animation_effects": ["淡入淡出", "缩放", "平移", "高亮", "描边"],
+      "transition_effects": ["推拉", "滑动", "渐变", "擦除", "翻转"]
+    }
+  },
+  "text_to_video_scenes": [
+    {
+      "scene_id": 1,
+      "description": "金融市场波动的动态展示",
+      "video_prompt": "股票市场价格波动的动态图表，红绿K线图在屏幕上流动变化，体现市场波动性",
+      "insert_position": "在第2个场景中间插入",
+      "duration": "8秒"
+    },
+    {
+      "scene_id": 2,
+      "description": "投资组合平衡的概念展示",
+      "video_prompt": "天平秤上的股票和债券图标在平衡状态，背景是流动的金融数字和图表",
+      "insert_position": "在第3个场景后插入",
+      "duration": "6秒"
+    },
+    {
+      "scene_id": 3,
+      "description": "风险收益关系的动态演示",
+      "video_prompt": "3D立体的风险收益散点图，不同的投资组合点在图中移动，显示风险与收益的正相关关系",
+      "insert_position": "在第4个场景后插入",
+      "duration": "8秒"
+    },
+    {
+      "scene_id": 4,
+      "description": "个人投资决策思考过程",
+      "video_prompt": "商务人士在分析投资图表，手指在平板电脑上滑动查看不同的投资选项和数据",
+      "insert_position": "在第5个场景后插入",
+      "duration": "5秒"
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+# VideoMaker 开发环境配置
+# 这是一个开发环境的配置模板，包含所有默认设置
+
+# Claude API配置
+claude:
+  api_key: "${CLAUDE_API_KEY}"  # 从环境变量读取
+  base_url: "https://api.anthropic.com"
+  model: "claude-3-sonnet-20240229"
+  max_tokens: 4000
+  timeout: 30
+  max_retries: 3
+
+# TTS API配置  
+tts:
+  api_key: "${TTS_API_KEY}"
+  base_url: "https://api.openai.com/v1"
+  model: "tts-1"
+  voice: "alloy"
+  speed: 1.0
+  timeout: 60
+
+# 视频生成API配置
+video:
+  api_key: "${VIDEO_API_KEY}"
+  base_url: "https://api.runway.com"
+  model: "gen3"
+  timeout: 300
+  max_retries: 2
+
+# 路径配置
+paths:
+  # 输入路径
+  input_dir: "assets/input"
+  default_image_path: "assets/input/images"
+  templates_dir: "assets/templates" 
+  examples_dir: "assets/examples"
+  
+  # 输出路径
+  output_dir: "output"
+  temp_dir: "temp"
+  logs_dir: "logs"
+  
+  # 缓存和数据路径
+  cache_dir: "data/cache"
+  models_dir: "data/models"
+  datasets_dir: "data/datasets"
+
+# 处理配置
+processing:
+  max_cuts: 10
+  max_scenes: 5
+  video_quality: 85  # 开发环境使用较低质量以加快处理速度
+  parallel_processing: false  # 开发环境关闭并行处理便于调试
+  
+# 缓存配置（开发环境启用缓存）
+cache:
+  enable: true
+  max_size_gb: 5
+  api_cache_hours: 24
+  image_cache_days: 7
+  temp_file_hours: 1
+  
+# 存储配置
+storage:
+  auto_cleanup: true
+  backup_user_data: false  # 开发环境不备份
+  external_storage: false
+
+# 日志配置
+logging:
+  level: "DEBUG"  # 开发环境使用详细日志
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_enabled: true
+  console_enabled: true
+  max_file_size_mb: 10
+  backup_count: 3
+
+# 开发环境特定配置
+development:
+  debug_mode: true
+  auto_reload: true
+  mock_apis: false  # 是否使用模拟API（用于离线开发）
+  save_intermediate_files: true  # 保存中间文件用于调试
+  verbose_output: true 

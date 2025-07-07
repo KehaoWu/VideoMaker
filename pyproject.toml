@@ -1,0 +1,14 @@
+[project]
+name = "videomaker"
+version = "0.1.0"
+description = "基于Claude 4.0的智能视频制作工具"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.0.0",
+    "openai>=1.0.0",
+    "pillow>=9.0.0",
+    "python-dotenv>=0.19.0",
+    "pyyaml>=6.0.2",
+    "requests>=2.28.0",
+]
