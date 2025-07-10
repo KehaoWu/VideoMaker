@@ -11,8 +11,8 @@ class NarrationSegment:
     segment_id: str
     text: str
     estimated_duration: float
-    speaking_rate: str = "normal"
-    emotion: str = "professional"
+    speaking_rate: float = 1.0  # 语速，范围0.5-2.0
+    voice: str = "alloy"  # OpenAI TTS声音: alloy, echo, fable, onyx, nova, shimmer
     actual_duration: Optional[float] = None  # 实际生成的音频时长
     audio_file_path: Optional[str] = None  # 生成的音频文件路径
     
@@ -22,8 +22,8 @@ class NarrationSegment:
             segment_id=data['segment_id'],
             text=data['text'],
             estimated_duration=data['estimated_duration'],
-            speaking_rate=data.get('speaking_rate', 'normal'),
-            emotion=data.get('emotion', 'professional'),
+            speaking_rate=float(data.get('speaking_rate', 1.0)),
+            voice=data.get('voice', 'alloy'),
             actual_duration=data.get('actual_duration'),
             audio_file_path=data.get('audio_file_path')
         )
@@ -34,7 +34,7 @@ class NarrationSegment:
             'text': self.text,
             'estimated_duration': self.estimated_duration,
             'speaking_rate': self.speaking_rate,
-            'emotion': self.emotion
+            'voice': self.voice
         }
         if self.actual_duration is not None:
             result['actual_duration'] = self.actual_duration
@@ -55,8 +55,14 @@ class NarrationSegment:
         if self.estimated_duration <= 0:
             errors.append("预估时长必须大于0")
         
-        if self.speaking_rate not in ['slow', 'normal', 'fast']:
-            errors.append("语速必须是 slow/normal/fast")
+        # 验证语速范围
+        if not (0.5 <= self.speaking_rate <= 2.0):
+            errors.append("语速必须在0.5-2.0范围内")
+        
+        # 验证voice选项
+        valid_voices = {'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'}
+        if self.voice not in valid_voices:
+            errors.append(f"voice必须是以下之一: {', '.join(valid_voices)}")
         
         return len(errors) == 0, errors
 

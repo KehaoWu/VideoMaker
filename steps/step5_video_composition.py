@@ -33,9 +33,8 @@ class Step5VideoComposition(BaseStep):
                     error_message="输入验证失败"
                 )
             
-            # 创建输出目录
-            final_dir = os.path.join(output_dir, "step5_final")
-            ensure_directory(final_dir)
+            # 使用final子目录作为输出
+            final_dir = os.path.join(output_dir, "final")
             
             # TODO: 实现视频合成逻辑
             # 这里需要使用ffmpeg等工具合成最终视频

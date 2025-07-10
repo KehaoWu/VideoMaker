@@ -5,10 +5,11 @@ OpenAI API客户端
 
 import base64
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Generator
 from pathlib import Path
 
 from openai import OpenAI
+from openai.types.chat import ChatCompletion
 from PIL import Image
 
 from utils.logger import get_logger
@@ -54,12 +55,13 @@ class OpenAIAPI:
             self.logger.exception(f"图片编码失败: {e}")
             raise OpenAIAPIError(f"图片编码失败: {e}")
     
-    def send_message(self, messages: List[Dict]) -> Dict[str, Any]:
+    def send_message(self, messages: List[Dict], stream: bool = True) -> Dict[str, Any]:
         """
         发送消息到OpenAI API
         
         Args:
             messages: 消息列表，每个消息是一个字典，包含role和content
+            stream: 是否使用流式模式
             
         Returns:
             API响应数据
@@ -68,27 +70,45 @@ class OpenAIAPI:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                max_tokens=self.max_tokens
+                max_tokens=self.max_tokens,
+                stream=stream
             )
             
-            return {
-                'content': response.choices[0].message.content,
-                'role': response.choices[0].message.role,
-                'model': response.model,
-                'usage': response.usage.dict() if response.usage else None
-            }
+            if stream:
+                # 处理流式响应
+                collected_content = []
+                for chunk in response:
+                    if chunk.choices[0].delta.content:
+                        collected_content.append(chunk.choices[0].delta.content)
+                        # 可以在这里添加回调函数来实时处理内容
+                
+                return {
+                    'content': ''.join(collected_content),
+                    'role': 'assistant',
+                    'model': self.model,
+                    'usage': None  # 流式模式下无法获取usage信息
+                }
+            else:
+                # 处理普通响应
+                return {
+                    'content': response.choices[0].message.content,
+                    'role': response.choices[0].message.role,
+                    'model': response.model,
+                    'usage': response.usage.dict() if response.usage else None
+                }
             
         except Exception as e:
             self.logger.exception(f"API请求异常: {e}")
             raise OpenAIAPIError(f"API请求异常: {e}")
     
-    def send_message_with_image(self, prompt: str, image_path: str) -> Dict[str, Any]:
+    def send_message_with_image(self, prompt: str, image_path: str, stream: bool = True) -> Dict[str, Any]:
         """
         发送带图片的消息到OpenAI API
         
         Args:
             prompt: 提示词文本
             image_path: 图片文件路径
+            stream: 是否使用流式模式
             
         Returns:
             API响应数据
@@ -121,7 +141,80 @@ class OpenAIAPI:
         ]
         
         # 发送请求
-        return self.send_message(messages)
+        return self.send_message(messages, stream=stream)
+    
+    def analyze_image_regions(self, image_path: str, region_descriptions: List[str], stream: bool = True) -> List[Dict[str, Any]]:
+        """
+        分析图片中的指定区域
+        
+        Args:
+            image_path: 图片文件路径
+            region_descriptions: 区域描述列表
+            stream: 是否使用流式模式
+            
+        Returns:
+            区域分析结果列表，每个结果包含坐标信息
+        """
+        prompt = "请分析图片中的以下区域，并提供每个区域的坐标信息（x, y, width, height）：\n"
+        for desc in region_descriptions:
+            prompt += f"- {desc}\n"
+        prompt += "\n请以JSON格式返回结果，格式如下：\n"
+        prompt += """[
+            {
+                "description": "区域描述",
+                "coordinates": {
+                    "x": 0,
+                    "y": 0,
+                    "width": 100,
+                    "height": 100
+                }
+            }
+        ]"""
+        
+        response = self.send_message_with_image(prompt, image_path, stream=stream)
+        
+        try:
+            # 尝试解析JSON响应
+            content = response['content'].strip()
+            # 找到第一个 [ 和最后一个 ] 之间的内容
+            start = content.find('[')
+            end = content.rfind(']') + 1
+            if start != -1 and end != 0:
+                json_str = content[start:end]
+                return json.loads(json_str)
+            else:
+                self.logger.error("无法从响应中提取JSON数据")
+                return []
+        except json.JSONDecodeError as e:
+            self.logger.error(f"JSON解析失败: {e}")
+            return []
+        except Exception as e:
+            self.logger.error(f"处理响应数据失败: {e}")
+            return []
+    
+    def generate_narration_from_image(self, image_path: str, title: str, duration: float, stream: bool = True) -> str:
+        """
+        根据图片生成旁白文本
+        
+        Args:
+            image_path: 图片文件路径
+            title: 视频标题
+            duration: 视频时长（秒）
+            stream: 是否使用流式模式
+            
+        Returns:
+            生成的旁白文本
+        """
+        prompt = f"""请根据这张图片生成一段旁白文本，用于{duration}秒的视频。
+视频标题是：{title}
+要求：
+1. 文本长度要适合{duration}秒的语音
+2. 描述要生动有趣
+3. 语言要自然流畅
+4. 重点描述图片中的主要内容和特点"""
+        
+        response = self.send_message_with_image(prompt, image_path, stream=stream)
+        return response['content']
     
     def validate_image(self, image_path: str) -> Dict[str, Any]:
         """

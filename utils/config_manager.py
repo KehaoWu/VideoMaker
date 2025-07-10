@@ -10,6 +10,9 @@ from pathlib import Path
 import re
 from dotenv import load_dotenv
 
+from .exceptions import ConfigError
+from .logger import get_logger
+
 
 class ConfigManager:
     """配置管理器，支持多层配置和环境变量替换"""
@@ -27,6 +30,7 @@ class ConfigManager:
         self.config_file = config_file
         self._config = {}
         self._loaded = False
+        self.logger = get_logger(__name__)
         
         # 加载配置
         self._load_config()
@@ -43,15 +47,20 @@ class ConfigManager:
                     config_data = yaml.safe_load(f)
                     if config_data:
                         self._config = config_data
+            except yaml.YAMLError as e:
+                raise ConfigError(f"YAML配置文件格式错误: {e}")
             except Exception as e:
-                print(f"警告：加载配置文件失败 {self.config_file}: {e}")
-                self._config = {}
+                raise ConfigError(f"加载配置文件失败: {e}")
         else:
-            print(f"警告：配置文件不存在 {self.config_file}，使用默认配置")
+            self.logger.warning(f"配置文件不存在 {self.config_file}，使用默认配置")
             self._config = self._get_default_config()
         
         # 替换环境变量
-        self._config = self._replace_env_vars(self._config)
+        try:
+            self._config = self._replace_env_vars(self._config)
+        except Exception as e:
+            raise ConfigError(f"替换环境变量失败: {e}")
+        
         self._loaded = True
     
     def _replace_env_vars(self, obj: Any) -> Any:

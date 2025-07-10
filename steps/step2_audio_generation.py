@@ -10,7 +10,7 @@ from pathlib import Path
 from .base_step import BaseStep, StepResult
 from models.video_plan import VideoPlan
 from models.narration_script import NarrationSegment
-from apis.tts_api import TTSAPI, TTSAPIError
+from apis.tts_api import TTSAPI
 from utils.logger import get_logger
 from utils.file_utils import ensure_directory, safe_filename
 from utils.config_manager import get_config
@@ -29,7 +29,7 @@ class Step2AudioGeneration(BaseStep):
         # 初始化TTS API客户端
         try:
             self.tts_api = TTSAPI()
-        except TTSAPIError as e:
+        except Exception as e:
             self.logger.warning(f"TTS API初始化失败: {e}")
             self.tts_api = None
     
@@ -64,7 +64,7 @@ class Step2AudioGeneration(BaseStep):
                 )
             
             # 创建输出目录
-            audio_dir = os.path.join(output_dir, "step2_audio")
+            audio_dir = os.path.join(output_dir, "audio")  # 使用标准化的目录名
             ensure_directory(audio_dir)
             
             # 获取音频段落
@@ -133,11 +133,10 @@ class Step2AudioGeneration(BaseStep):
             output_path = os.path.join(output_dir, output_filename)
             
             # 调用TTS API生成语音
-            result = self.tts_api.generate_speech(
+            result = self.tts_api.generate_audio(
                 text=segment.text,
                 output_path=output_path,
-                speaking_rate=segment.speaking_rate,
-                emotion=segment.emotion
+                voice_type=segment.voice  # 使用voice作为voice_type参数
             )
             
             if result.get('success'):
@@ -156,34 +155,19 @@ class Step2AudioGeneration(BaseStep):
     
     def validate_inputs(self, video_plan: VideoPlan) -> bool:
         """验证输入参数"""
-        try:
-            # 检查narration_script
-            if not video_plan.narration_script:
-                self.logger.error("缺少narration_script")
-                return False
-            
-            # 检查音频段落
-            segments = video_plan.narration_script.segments
-            if not segments:
-                self.logger.error("没有音频段落")
-                return False
-            
-            # 验证每个段落
-            for i, segment in enumerate(segments):
-                if not segment.text or not segment.text.strip():
-                    self.logger.error(f"音频段落 {i+1} 的文本为空")
-                    return False
-                
-                # 验证文本长度
-                if len(segment.text) > 4096:
-                    self.logger.error(f"音频段落 {i+1} 的文本过长")
-                    return False
-            
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"输入验证失败: {e}")
+        if not video_plan:
+            self.logger.error("缺少video_plan")
             return False
+            
+        if not video_plan.narration_script:
+            self.logger.error("缺少narration_script")
+            return False
+            
+        if not video_plan.narration_script.get('segments'):
+            self.logger.error("narration_script中没有语音片段")
+            return False
+            
+        return True
     
     def get_dependencies(self) -> List[str]:
         """获取依赖的步骤列表"""

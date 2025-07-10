@@ -48,9 +48,8 @@ class Step4TextToVideo(BaseStep):
                     error_message="Video API未初始化"
                 )
             
-            # 创建输出目录
-            video_dir = os.path.join(output_dir, "step4_videos")
-            ensure_directory(video_dir)
+            # 使用background子目录
+            video_dir = os.path.join(output_dir, "background")
             
             # TODO: 实现文生视频逻辑
             # 这里需要根据text_to_video_plan中的segments生成视频

@@ -1,14 +1,14 @@
 """
-API客户端层
-提供对外部API服务的统一访问接口
+API模块
+包含各种外部API的客户端实现
 """
 
-from .tts_api import TTSAPI
-from .claude_api import OpenAIAPI
+from .openai_api import OpenAIAPI
 from .video_api import VideoAPI
+from .tts_api import TTSAPI
 
 __all__ = [
-    'TTSAPI',
     'OpenAIAPI',
-    'VideoAPI'
+    'VideoAPI',
+    'TTSAPI'
 ] 

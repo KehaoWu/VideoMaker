@@ -21,9 +21,10 @@ from utils.logger import get_logger
 from utils.config_manager import get_config
 from utils.validators import ValidationResult
 from utils.directory_manager import initialize_directories, auto_cleanup_if_needed
-from apis.claude_api import OpenAIAPI
+from apis.openai_api import OpenAIAPI
 import config
 from steps.step0_video_planning import Step0VideoPlanning
+from utils.exceptions import FileProcessingError
 
 # 设置日志
 logger = get_logger(__name__)
@@ -84,6 +85,52 @@ def plan(image_path: str, duration: float, output_dir: str):
         logger.error(f"处理失败: {str(e)}")
         raise click.ClickException(str(e))
 
+@cli.command()
+@click.argument('plan_file', type=click.Path(exists=True))
+@click.option('--output-dir', '-o', type=click.Path(), default=None, help='输出目录')
+@click.option('--steps', '-s', multiple=True, help='指定要执行的步骤')
+def generate(plan_file: str, output_dir: Optional[str], steps: List[str]):
+    """生成视频
+    
+    Args:
+        plan_file: 视频规划文件路径
+        output_dir: 输出目录（可选）
+        steps: 指定要执行的步骤（可选）
+    """
+    try:
+        # 验证输入文件
+        if not validate_input_file(plan_file, "json"):
+            raise click.ClickException("无效的规划文件")
+            
+        # 加载视频规划
+        video_plan = load_video_plan(plan_file)
+        
+        # 验证视频规划
+        validation_result = validate_video_plan(video_plan)
+        if not validation_result.is_valid:
+            raise click.ClickException(f"视频规划验证失败: {'; '.join(validation_result.errors)}")
+        
+        # 如果指定了新的输出目录，更新video_plan中的输出路径
+        if output_dir:
+            video_plan.meta_info.output_dir = os.path.join(output_dir, video_plan.meta_info.video_id)
+            os.makedirs(video_plan.meta_info.output_dir, exist_ok=True)
+            logger.info(f"输出目录: {video_plan.meta_info.output_dir}")
+            
+            # 保存更新后的视频规划
+            plan_output_path = os.path.join(video_plan.meta_info.output_dir, 'video_plan.json')
+            video_plan.save_to_json_file(plan_output_path)
+        
+        # 执行工作流
+        if execute_workflow(video_plan, video_plan.meta_info.output_dir, steps if steps else None):
+            logger.info("✓ 视频生成完成")
+            return
+            
+        raise click.ClickException("视频生成失败")
+        
+    except Exception as e:
+        logger.error(f"处理失败: {str(e)}")
+        raise click.ClickException(str(e))
+
 def setup_logging() -> None:
     """设置日志系统和初始化环境"""
     logger = get_logger(__name__)
@@ -128,12 +175,19 @@ def get_image_dimensions(image_path: str) -> tuple[int, int]:
         with Image.open(image_path) as img:
             return img.size  # (width, height)
     except Exception as e:
-        print(f"警告: 无法获取图片尺寸: {e}")
-        return (1920, 1080)  # 默认尺寸
+        raise FileProcessingError(f"获取图片尺寸失败: {e}", image_path)
 
 
-def create_output_directory(output_dir: Optional[str] = None) -> str:
-    """创建输出目录"""
+def create_output_directory(output_dir: Optional[str] = None, video_id: Optional[str] = None) -> str:
+    """创建输出目录
+    
+    Args:
+        output_dir: 基础输出目录
+        video_id: 视频ID，如果不提供则创建新的
+    
+    Returns:
+        str: 完整的输出目录路径
+    """
     if not output_dir:
         # 使用配置中的默认输出目录
         try:
@@ -142,11 +196,27 @@ def create_output_directory(output_dir: Optional[str] = None) -> str:
         except Exception:
             output_dir = config.OUTPUT_DIR
     
-    # 添加时间戳子目录
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    full_output_dir = os.path.join(output_dir, f'video_{timestamp}')
+    # 如果没有提供video_id，创建新的
+    if not video_id:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        video_id = f'video_{timestamp}'
     
+    # 创建完整输出路径
+    full_output_dir = os.path.join(output_dir, video_id)
     os.makedirs(full_output_dir, exist_ok=True)
+    
+    # 创建子目录结构
+    subdirs = [
+        'cuts',          # 切图输出
+        'audio',         # 音频文件
+        'background',    # 背景视频
+        'composition',   # 合成中间文件
+        'final'          # 最终输出
+    ]
+    
+    for subdir in subdirs:
+        os.makedirs(os.path.join(full_output_dir, subdir), exist_ok=True)
+    
     return full_output_dir
 
 
@@ -157,7 +227,7 @@ def load_video_plan(plan_file: str) -> VideoPlan:
     
     try:
         video_plan = VideoPlan.from_json_file(plan_file)
-        logger.info(f"成功加载视频规划: {video_plan.title}")
+        logger.info(f"成功加载视频规划: {video_plan.meta_info.title}")
         return video_plan
     except Exception as e:
         logger.error(f"加载视频规划失败: {e}")
@@ -241,7 +311,7 @@ def cmd_generate(args) -> int:
             return 0
         
         # 创建输出目录
-        output_dir = create_output_directory(args.output)
+        output_dir = create_output_directory(args.output, video_id=video_plan.meta_info.video_id)
         print(f"📁 输出目录: {output_dir}")
         
         # 保存验证后的视频规划到输出目录

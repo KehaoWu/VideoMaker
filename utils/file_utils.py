@@ -1,53 +1,41 @@
-"""
-文件操作工具函数
-提供通用的文件和目录操作功能
-"""
-
+"""文件操作工具模块"""
 import os
-import shutil
 import json
-from pathlib import Path
-from typing import Optional, List, Dict, Any
+import shutil
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+
+from .exceptions import FileError, FileProcessingError
 
 
-def ensure_directory(directory_path: str) -> None:
+def ensure_directory(directory: str) -> bool:
     """确保目录存在，如果不存在则创建"""
-    os.makedirs(directory_path, exist_ok=True)
+    try:
+        os.makedirs(directory, exist_ok=True)
+        return True
+    except Exception as e:
+        raise FileProcessingError(f"创建目录失败: {e}", directory)
 
 
 def safe_filename(filename: str) -> str:
-    """生成安全的文件名，移除或替换不安全字符"""
-    # 移除或替换危险字符
-    unsafe_chars = '<>:"/\\|?*'
-    safe_name = filename
-    for char in unsafe_chars:
-        safe_name = safe_name.replace(char, '_')
-    
-    # 移除首尾空格和点
-    safe_name = safe_name.strip('. ')
-    
-    # 限制长度
-    if len(safe_name) > 200:
-        safe_name = safe_name[:200]
-    
-    return safe_name
+    """生成安全的文件名"""
+    # 移除不安全字符
+    safe_chars = [c if c.isalnum() or c in '._- ' else '_' for c in filename]
+    return ''.join(safe_chars).strip()
 
 
-def get_unique_filename(base_path: str, extension: str = "") -> str:
-    """生成唯一文件名，如果文件已存在则添加序号"""
-    if not extension.startswith('.') and extension:
-        extension = '.' + extension
-    
-    filename = base_path + extension
+def get_unique_filename(directory: str, filename: str) -> str:
+    """生成唯一的文件名"""
+    name, ext = os.path.splitext(filename)
     counter = 1
+    new_filename = filename
     
-    while os.path.exists(filename):
-        name_part = base_path
-        filename = f"{name_part}_{counter}{extension}"
+    while os.path.exists(os.path.join(directory, new_filename)):
+        new_filename = f"{name}_{counter}{ext}"
         counter += 1
     
-    return filename
+    return new_filename
 
 
 def copy_file(source_path: str, dest_path: str, create_dirs: bool = True) -> bool:
@@ -58,8 +46,7 @@ def copy_file(source_path: str, dest_path: str, create_dirs: bool = True) -> boo
         shutil.copy2(source_path, dest_path)
         return True
     except Exception as e:
-        print(f"复制文件失败: {source_path} -> {dest_path}, 错误: {e}")
-        return False
+        raise FileProcessingError(f"复制文件失败: {e}", source_path)
 
 
 def move_file(source_path: str, dest_path: str, create_dirs: bool = True) -> bool:
@@ -70,8 +57,7 @@ def move_file(source_path: str, dest_path: str, create_dirs: bool = True) -> boo
         shutil.move(source_path, dest_path)
         return True
     except Exception as e:
-        print(f"移动文件失败: {source_path} -> {dest_path}, 错误: {e}")
-        return False
+        raise FileProcessingError(f"移动文件失败: {e}", source_path)
 
 
 def delete_file(file_path: str) -> bool:
@@ -81,25 +67,24 @@ def delete_file(file_path: str) -> bool:
             os.remove(file_path)
         return True
     except Exception as e:
-        print(f"删除文件失败: {file_path}, 错误: {e}")
-        return False
+        raise FileProcessingError(f"删除文件失败: {e}", file_path)
 
 
 def get_file_size(file_path: str) -> int:
     """获取文件大小（字节）"""
     try:
         return os.path.getsize(file_path)
-    except Exception:
-        return 0
+    except Exception as e:
+        raise FileProcessingError(f"获取文件大小失败: {e}", file_path)
 
 
-def get_file_modified_time(file_path: str) -> Optional[datetime]:
-    """获取文件修改时间"""
-    try:
-        timestamp = os.path.getmtime(file_path)
-        return datetime.fromtimestamp(timestamp)
-    except Exception:
-        return None
+def format_file_size(size_bytes: int) -> str:
+    """格式化文件大小"""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_bytes < 1024:
+            return f"{size_bytes:.1f}{unit}"
+        size_bytes /= 1024
+    return f"{size_bytes:.1f}TB"
 
 
 def list_files_with_extension(directory: str, extension: str) -> List[str]:
@@ -107,109 +92,72 @@ def list_files_with_extension(directory: str, extension: str) -> List[str]:
     if not extension.startswith('.'):
         extension = '.' + extension
     
-    files = []
     try:
+        files = []
         for filename in os.listdir(directory):
             if filename.lower().endswith(extension.lower()):
                 files.append(os.path.join(directory, filename))
+        return files
     except Exception as e:
-        print(f"列出文件失败: {directory}, 错误: {e}")
-    
-    return files
+        raise FileProcessingError(f"列出文件失败: {e}", directory)
 
 
-def read_json_file(file_path: str) -> Optional[Dict[Any, Any]]:
+def read_json_file(file_path: str) -> Dict[Any, Any]:
     """读取JSON文件"""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
+    except json.JSONDecodeError as e:
+        raise FileError(f"JSON解析失败: {e}")
     except Exception as e:
-        print(f"读取JSON文件失败: {file_path}, 错误: {e}")
-        return None
+        raise FileProcessingError(f"读取JSON文件失败: {e}", file_path)
 
 
-def write_json_file(file_path: str, data: Dict[Any, Any], create_dirs: bool = True) -> bool:
+def write_json_file(file_path: str, data: Dict[Any, Any], indent: int = 2) -> bool:
     """写入JSON文件"""
     try:
-        if create_dirs:
-            ensure_directory(os.path.dirname(file_path))
-        
         with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            json.dump(data, f, ensure_ascii=False, indent=indent)
         return True
     except Exception as e:
-        print(f"写入JSON文件失败: {file_path}, 错误: {e}")
-        return False
+        raise FileProcessingError(f"写入JSON文件失败: {e}", file_path)
 
 
-def read_text_file(file_path: str) -> Optional[str]:
+def read_text_file(file_path: str) -> str:
     """读取文本文件"""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             return f.read()
     except Exception as e:
-        print(f"读取文本文件失败: {file_path}, 错误: {e}")
-        return None
+        raise FileProcessingError(f"读取文本文件失败: {e}", file_path)
 
 
-def write_text_file(file_path: str, content: str, create_dirs: bool = True) -> bool:
+def write_text_file(file_path: str, content: str) -> bool:
     """写入文本文件"""
     try:
-        if create_dirs:
-            ensure_directory(os.path.dirname(file_path))
-        
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(content)
         return True
     except Exception as e:
-        print(f"写入文本文件失败: {file_path}, 错误: {e}")
-        return False
+        raise FileProcessingError(f"写入文本文件失败: {e}", file_path)
 
 
-def cleanup_directory(directory: str, keep_days: int = 7) -> int:
-    """清理目录中的旧文件"""
-    if not os.path.exists(directory):
-        return 0
-    
-    cutoff_time = datetime.now().timestamp() - (keep_days * 24 * 60 * 60)
-    deleted_count = 0
-    
+def get_file_modification_time(file_path: str) -> datetime:
+    """获取文件修改时间"""
     try:
-        for filename in os.listdir(directory):
-            file_path = os.path.join(directory, filename)
-            if os.path.isfile(file_path):
-                if os.path.getmtime(file_path) < cutoff_time:
-                    os.remove(file_path)
-                    deleted_count += 1
+        return datetime.fromtimestamp(os.path.getmtime(file_path))
     except Exception as e:
-        print(f"清理目录失败: {directory}, 错误: {e}")
-    
-    return deleted_count
+        raise FileProcessingError(f"获取文件修改时间失败: {e}", file_path)
 
 
 def get_directory_size(directory: str) -> int:
     """获取目录总大小（字节）"""
-    total_size = 0
     try:
+        total_size = 0
         for dirpath, dirnames, filenames in os.walk(directory):
             for filename in filenames:
                 file_path = os.path.join(dirpath, filename)
                 total_size += os.path.getsize(file_path)
+        return total_size
     except Exception as e:
-        print(f"计算目录大小失败: {directory}, 错误: {e}")
-    
-    return total_size
-
-
-def format_file_size(size_bytes: int) -> str:
-    """格式化文件大小显示"""
-    if size_bytes == 0:
-        return "0B"
-    
-    size_names = ["B", "KB", "MB", "GB", "TB"]
-    i = 0
-    while size_bytes >= 1024 and i < len(size_names) - 1:
-        size_bytes /= 1024.0
-        i += 1
-    
-    return f"{size_bytes:.2f}{size_names[i]}" 
+        raise FileProcessingError(f"计算目录大小失败: {e}", directory) 

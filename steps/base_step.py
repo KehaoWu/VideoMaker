@@ -1,7 +1,7 @@
 """处理步骤基类 - 定义所有处理步骤的统一接口"""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -10,43 +10,31 @@ from typing import Any, Dict, List, Optional
 class StepResult:
     """步骤执行结果"""
     step_name: str
-    status: str  # "pending", "running", "completed", "failed"
-    start_time: datetime
-    end_time: Optional[datetime] = None
-    output_files: List[str] = None
+    status: str = "pending"  # pending, completed, failed
     error_message: Optional[str] = None
-    metadata: Dict[str, Any] = None
+    output_files: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    start_time: str = field(default_factory=lambda: datetime.now().isoformat())
+    end_time: Optional[str] = None
+    duration: float = 0.0
     
-    def __post_init__(self):
-        if self.output_files is None:
-            self.output_files = []
-        if self.metadata is None:
-            self.metadata = {}
-    
-    @property
-    def duration(self) -> Optional[float]:
-        """获取执行时长（秒）"""
-        if self.start_time and self.end_time:
-            return (self.end_time - self.start_time).total_seconds()
-        return None
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典格式"""
+        return {
+            'step_name': self.step_name,
+            'status': self.status,
+            'error_message': self.error_message,
+            'output_files': self.output_files,
+            'metadata': self.metadata,
+            'start_time': self.start_time,
+            'end_time': self.end_time,
+            'duration': self.duration
+        }
     
     @property
     def is_successful(self) -> bool:
         """是否执行成功"""
         return self.status == "completed"
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
-        return {
-            'step_name': self.step_name,
-            'status': self.status,
-            'start_time': self.start_time.isoformat() if self.start_time else None,
-            'end_time': self.end_time.isoformat() if self.end_time else None,
-            'duration': self.duration,
-            'output_files': self.output_files,
-            'error_message': self.error_message,
-            'metadata': self.metadata
-        }
 
 
 class BaseStep(ABC):
@@ -107,8 +95,8 @@ class BaseStep(ABC):
         return StepResult(
             step_name=self.name,
             status=status,
-            start_time=start_time,
-            end_time=end_time or datetime.now(),
+            start_time=start_time.isoformat() if start_time else datetime.now().isoformat(),
+            end_time=end_time.isoformat() if end_time else None,
             output_files=output_files or [],
             error_message=error_message,
             metadata=metadata or {}

@@ -67,8 +67,18 @@ class WorkflowExecutor:
         """
         self.logger.info("开始执行视频制作工作流")
         
-        # 创建输出目录
+        # 确保输出目录存在并创建子目录结构
         ensure_directory(output_dir)
+        subdirs = [
+            'cuts',          # 切图输出
+            'audio',         # 音频文件
+            'background',    # 背景视频
+            'composition',   # 合成中间文件
+            'final'          # 最终输出
+        ]
+        
+        for subdir in subdirs:
+            ensure_directory(os.path.join(output_dir, subdir))
         
         # 记录开始时间
         start_time = datetime.now()
@@ -92,47 +102,40 @@ class WorkflowExecutor:
         results = {}
         failed_steps = []
         
+        # 执行每个步骤
         for step_id in execution_order:
+            if failed_steps:
+                # 如果有前序步骤失败，记录后续步骤为跳过状态
+                self.logger.warning(f"由于前序步骤失败，跳过步骤: {step_id}")
+                results[step_id] = StepResult(
+                    step_name=f"{step_id} - {self.steps[step_id].step_name}",
+                    status="skipped",
+                    error_message="前序步骤失败，步骤被跳过"
+                )
+                continue
+                
+            self.logger.info(f"执行步骤: {step_id} - {self.steps[step_id].step_name}")
+            
             try:
-                self.logger.info(f"执行步骤: {step_id} - {STEP_NAMES.get(step_id, step_id)}")
-                
-                # 检查依赖步骤是否完成
-                if not skip_dependencies:
-                    dependencies = STEP_DEPENDENCIES.get(step_id, [])
-                    for dep in dependencies:
-                        if dep not in results or results[dep].status != 'completed':
-                            self.logger.error(f"步骤 {step_id} 的依赖 {dep} 未完成")
-                            failed_steps.append(step_id)
-                            continue
-                
                 # 执行步骤
-                step_instance = self.steps[step_id]
-                result = step_instance.execute(video_plan, output_dir)
-                
-                # 记录结果
+                result = self.steps[step_id].execute(video_plan, output_dir)
                 results[step_id] = result
-                self.execution_history.append(result)
                 
-                if result.status == 'completed':
-                    self.logger.info(f"步骤 {step_id} 执行成功")
-                else:
+                # 检查执行结果
+                if not result.is_successful:
                     self.logger.error(f"步骤 {step_id} 执行失败: {result.error_message}")
                     failed_steps.append(step_id)
-                
+                    
             except Exception as e:
                 self.logger.error(f"步骤 {step_id} 执行异常: {e}")
                 failed_steps.append(step_id)
-                
-                # 创建失败结果
-                result = StepResult(
-                    step_name=STEP_NAMES.get(step_id, step_id),
-                    status='failed',
+                results[step_id] = StepResult(
+                    step_name=f"{step_id} - {self.steps[step_id].step_name}",
+                    status="failed",
                     error_message=str(e)
                 )
-                results[step_id] = result
-                self.execution_history.append(result)
         
-        # 计算执行时间
+        # 记录结束时间
         end_time = datetime.now()
         execution_time = (end_time - start_time).total_seconds()
         
@@ -156,6 +159,10 @@ class WorkflowExecutor:
             self.logger.info(f"工作流执行成功，用时 {execution_time:.2f} 秒")
         else:
             self.logger.error(f"工作流执行失败，{len(failed_steps)} 个步骤失败")
+            # 输出失败的步骤
+            for step_id in failed_steps:
+                result = results[step_id]
+                self.logger.error(f"  - {step_id}: {result.error_message}")
         
         return workflow_result
     

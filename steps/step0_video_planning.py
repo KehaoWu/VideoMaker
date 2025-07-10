@@ -10,8 +10,8 @@ from typing import Dict, Any, List, Tuple
 from pathlib import Path
 from PIL import Image
 
-from apis.claude_api import OpenAIAPI
-from models.video_plan import VideoPlan
+from apis.openai_api import OpenAIAPI
+from models.video_plan import VideoPlan, TextToVideoConfig
 from models.meta_info import MetaInfo, VideoResolution
 from models.cutting_plan import CuttingPlan, SourceImage, CuttingRegion
 from models.narration_script import NarrationScript, NarrationSegment
@@ -78,13 +78,13 @@ class Step0VideoPlanning(BaseStep):
             os.makedirs(output_dir, exist_ok=True)
             
             # 生成文件名
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f'video_plan_{timestamp}.json'
+            filename = 'video_plan.json'
             output_path = os.path.join(output_dir, filename)
             
             # 准备要保存的数据
             plan_data = {
                 'meta_info': {
+                    'video_id': video_plan.meta_info.video_id,  # 添加video_id
                     'title': video_plan.meta_info.title,
                     'description': video_plan.meta_info.description,
                     'source_image': video_plan.meta_info.source_image,
@@ -92,7 +92,20 @@ class Step0VideoPlanning(BaseStep):
                     'output_dir': video_plan.meta_info.output_dir,
                     'status': video_plan.status
                 },
-                'regions': video_plan.regions
+                'regions': video_plan.regions,
+                'text_to_video_segments': [
+                    {
+                        'video_id': segment.video_id,
+                        'description': segment.description,
+                        'prompt': segment.prompt,
+                        'duration': segment.duration,
+                        'style': segment.style,
+                        'resolution': segment.resolution,
+                        'output_path': segment.output_path,
+                        'status': segment.status
+                    }
+                    for segment in video_plan.text_to_video_segments
+                ]
             }
             
             # 保存为JSON文件
@@ -164,7 +177,13 @@ class Step0VideoPlanning(BaseStep):
 - 每个区域需要包含完整的内容单元
 - 提供每个区域的精确坐标（x, y, width, height）
 
-3. 旁白脚本：
+3. 文生视频规划：
+- 规划需要通过AI生成的视频片段
+- 为每个视频片段提供详细的提示词
+- 确定每个视频片段的时长和风格
+- 视频片段可以作为背景或过渡使用
+
+4. 旁白脚本：
 - 为每个区域生成对应的旁白文本
 - 语言要自然、专业
 - 内容要与图片区域紧密相关
@@ -193,14 +212,25 @@ class Step0VideoPlanning(BaseStep):
       }}
     }}
   ],
+  "text_to_video_segments": [
+    {{
+      "video_id": "video_1",
+      "description": "视频片段描述",
+      "prompt": "详细的生成提示词",
+      "duration": 10.0,
+      "style": "realistic",
+      "resolution": [1920, 1080]
+    }}
+  ],
   "total_duration": {duration}
 }}
 
 注意：
 1. 坐标以图片左上角为原点(0,0)
-2. 图片实际尺寸为 {width}x{height} 像素
-3. 所有区域的旁白总时长不要超过视频总时长
-4. 只返回JSON格式，不要其他解释文字"""
+2. 文生视频片段的风格可以是 realistic（写实）或 artistic（艺术）
+3. 视频分辨率默认为 1920x1080
+4. 所有时长加起来不要超过总时长
+"""
     
     def _update_video_plan(self, video_plan: VideoPlan, plan_data: Dict[str, Any]) -> None:
         """
@@ -210,14 +240,25 @@ class Step0VideoPlanning(BaseStep):
             video_plan: 要更新的视频计划对象
             plan_data: 生成的规划数据
         """
-        # 更新元信息
-        meta_info = plan_data.get('meta_info', {})
-        video_plan.meta_info.title = meta_info.get('title', '')
-        video_plan.meta_info.description = meta_info.get('description', '')
-        video_plan.meta_info.status = "completed"
+        # 更新基本信息
+        video_plan.meta_info.title = plan_data.get('meta_info', {}).get('title', '')
+        video_plan.meta_info.description = plan_data.get('meta_info', {}).get('description', '')
         
         # 更新区域信息
         video_plan.regions = plan_data.get('regions', [])
+        
+        # 更新文生视频片段
+        video_plan.text_to_video_segments = []
+        for segment_data in plan_data.get('text_to_video_segments', []):
+            segment = TextToVideoConfig(
+                video_id=segment_data['video_id'],
+                description=segment_data['description'],
+                prompt=segment_data['prompt'],
+                duration=segment_data['duration'],
+                style=segment_data.get('style', 'realistic'),
+                resolution=segment_data.get('resolution', [1920, 1080])
+            )
+            video_plan.text_to_video_segments.append(segment)
     
     def validate_inputs(self, video_plan: VideoPlan) -> bool:
         """验证输入参数"""

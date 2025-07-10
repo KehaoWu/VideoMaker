@@ -1,17 +1,17 @@
 """
 步骤1：图片切割
-使用Claude API分析图片并切割出指定区域
+根据计划信息切割图片到指定区域
 """
 
 import os
 from typing import Dict, List, Any
 from PIL import Image
 from pathlib import Path
+from datetime import datetime
 
 from .base_step import BaseStep, StepResult
 from models.video_plan import VideoPlan
 from models.cutting_plan import CuttingRegion
-from apis.claude_api import OpenAIAPI, OpenAIAPIError
 from utils.logger import get_logger
 from utils.file_utils import ensure_directory, safe_filename
 from utils.config_manager import get_config
@@ -26,13 +26,6 @@ class Step1ImageCutting(BaseStep):
         self.step_id = "step1"
         self.logger = get_logger(__name__)
         self.config = get_config()
-        
-        # 初始化Claude API客户端
-        try:
-            self.claude_api = OpenAIAPI()
-        except OpenAIAPIError as e:
-            self.logger.warning(f"Claude API初始化失败: {e}")
-            self.claude_api = None
     
     def execute(self, video_plan: VideoPlan, output_dir: str) -> StepResult:
         """
@@ -45,6 +38,7 @@ class Step1ImageCutting(BaseStep):
         Returns:
             StepResult: 步骤执行结果
         """
+        start_time = datetime.now()
         self.logger.info("开始执行图片切割步骤")
         
         try:
@@ -53,11 +47,12 @@ class Step1ImageCutting(BaseStep):
                 return StepResult(
                     step_name=self.step_name,
                     status="failed",
+                    start_time=start_time.isoformat(),
                     error_message="输入验证失败"
                 )
             
             # 创建输出目录
-            cutting_dir = os.path.join(output_dir, "step1_cutting")
+            cutting_dir = os.path.join(output_dir, "cuts")  # 使用cuts目录
             ensure_directory(cutting_dir)
             
             # 获取源图片信息
@@ -69,6 +64,7 @@ class Step1ImageCutting(BaseStep):
                 return StepResult(
                     step_name=self.step_name,
                     status="failed",
+                    start_time=start_time.isoformat(),
                     error_message=f"源图片文件不存在: {image_path}"
                 )
             
@@ -78,20 +74,11 @@ class Step1ImageCutting(BaseStep):
                 return StepResult(
                     step_name=self.step_name,
                     status="failed",
+                    start_time=start_time.isoformat(),
                     error_message="没有定义切割区域"
                 )
             
             output_files = []
-            
-            # 如果有Claude API，使用AI分析图片和生成旁白
-            if self.claude_api:
-                # 分析图片区域
-                analyzed_regions = self._analyze_regions_with_ai(image_path, regions)
-                if analyzed_regions:
-                    regions = analyzed_regions
-                
-                # 生成旁白文本
-                self._generate_narration_with_ai(image_path, video_plan)
             
             # 执行图片切割
             for region in regions:
@@ -111,6 +98,7 @@ class Step1ImageCutting(BaseStep):
                 return StepResult(
                     step_name=self.step_name,
                     status="completed",
+                    start_time=start_time.isoformat(),
                     output_files=output_files,
                     metadata={
                         "total_regions": len(regions),
@@ -122,6 +110,7 @@ class Step1ImageCutting(BaseStep):
                 return StepResult(
                     step_name=self.step_name,
                     status="failed",
+                    start_time=start_time.isoformat(),
                     error_message="没有成功切割任何区域"
                 )
                 
@@ -129,62 +118,10 @@ class Step1ImageCutting(BaseStep):
             self.logger.error(f"图片切割步骤执行失败: {e}")
             return StepResult(
                 step_name=self.step_name,
-                status="failed", 
+                status="failed",
+                start_time=start_time.isoformat(),
                 error_message=str(e)
             )
-    
-    def _analyze_regions_with_ai(self, image_path: str, regions: List[CuttingRegion]) -> List[CuttingRegion]:
-        """使用AI分析图片区域"""
-        try:
-            self.logger.info("使用Claude API分析图片区域")
-            
-            # 构建区域描述列表
-            descriptions = []
-            for region in regions:
-                desc = f"{region.region_name}: {region.description}"
-                descriptions.append(desc)
-            
-            # 调用Claude API分析
-            analyzed_regions = self.claude_api.analyze_image_regions(image_path, descriptions)
-            
-            # 更新区域坐标
-            for i, ai_region in enumerate(analyzed_regions):
-                if i < len(regions):
-                    coordinates = ai_region.get('coordinates', {})
-                    if coordinates:
-                        regions[i].coordinates = coordinates
-                        self.logger.info(f"AI分析区域 {regions[i].region_name}: {coordinates}")
-            
-            return regions
-            
-        except Exception as e:
-            self.logger.warning(f"AI分析失败，使用默认坐标: {e}")
-            return regions
-    
-    def _generate_narration_with_ai(self, image_path: str, video_plan: VideoPlan) -> None:
-        """使用AI生成旁白文本"""
-        try:
-            self.logger.info("使用Claude API生成旁白文本")
-            
-            # 获取视频信息
-            title = video_plan.meta_info.video_title
-            duration = video_plan.meta_info.total_duration
-            
-            # 调用Claude API生成旁白
-            narration_text = self.claude_api.generate_narration_from_image(image_path, title, duration)
-            
-            # 更新旁白脚本
-            if video_plan.narration_script and video_plan.narration_script.segments:
-                video_plan.narration_script.segments[0].text = narration_text
-                self.logger.info(f"✓ AI生成旁白文本: {narration_text[:50]}...")
-            else:
-                self.logger.warning("旁白脚本结构不存在，无法更新")
-            
-        except Exception as e:
-            self.logger.warning(f"AI旁白生成失败: {e}")
-            # 使用默认旁白文本
-            if video_plan.narration_script and video_plan.narration_script.segments:
-                video_plan.narration_script.segments[0].text = "这是一个由VideoMaker自动生成的视频，展示了图片中的内容。"
     
     def _cut_region(self, image_path: str, region: CuttingRegion, output_dir: str) -> str:
         """切割单个区域"""
@@ -231,34 +168,26 @@ class Step1ImageCutting(BaseStep):
     
     def validate_inputs(self, video_plan: VideoPlan) -> bool:
         """验证输入参数"""
-        try:
-            # 检查cutting_plan
-            if not video_plan.cutting_plan:
-                self.logger.error("缺少cutting_plan")
-                return False
-            
-            # 检查源图片
-            source_image = video_plan.cutting_plan.source_image
-            if not source_image or not source_image.file_path:
-                self.logger.error("缺少源图片文件路径")
-                return False
-            
-            # 检查文件是否存在
-            if not os.path.exists(source_image.file_path):
-                self.logger.error(f"源图片文件不存在: {source_image.file_path}")
-                return False
-            
-            # 检查切割区域
-            regions = video_plan.cutting_plan.regions
-            if not regions:
-                self.logger.error("没有定义切割区域")
-                return False
-            
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"输入验证失败: {e}")
+        if not video_plan:
             return False
+            
+        if not video_plan.meta_info.source_image:
+            self.logger.error("缺少源图片路径")
+            return False
+            
+        if not os.path.exists(video_plan.meta_info.source_image):
+            self.logger.error(f"源图片不存在: {video_plan.meta_info.source_image}")
+            return False
+            
+        if not video_plan.cutting_plan:
+            self.logger.error("缺少cutting_plan")
+            return False
+            
+        if not video_plan.cutting_plan.regions:
+            self.logger.error("cutting_plan中没有区域定义")
+            return False
+            
+        return True
     
     def get_dependencies(self) -> List[str]:
         """获取依赖的步骤列表"""

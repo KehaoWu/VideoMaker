@@ -1,113 +1,114 @@
+"""日志工具模块"""
+
 import logging
 import os
+import sys
+import traceback
 from typing import Optional
 from datetime import datetime
 
 
-class VideoMakerLogger:
-    """统一的日志管理器"""
+def setup_logger(name: str, log_file: Optional[str] = None) -> logging.Logger:
+    """配置并返回日志器"""
+    logger = logging.getLogger(name)
     
-    def __init__(self, name: str = "VideoMaker", log_file: Optional[str] = None):
-        self.logger = logging.getLogger(name)
+    # 如果已经配置过，直接返回
+    if logger.handlers:
+        return logger
         
-        # 避免重复添加handler
-        if not self.logger.handlers:
-            self._setup_logger(log_file)
+    # 设置日志级别
+    logger.setLevel(logging.INFO)
     
-    def _setup_logger(self, log_file: Optional[str]):
-        """设置日志配置"""
-        self.logger.setLevel(logging.INFO)
-        
-        # 创建格式器 - 添加文件名、行号和函数名
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - [%(filename)s:%(lineno)d] - %(funcName)s - %(levelname)s - %(message)s'
-        )
-        
-        # 控制台处理器
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(formatter)
-        self.logger.addHandler(console_handler)
-        
-        # 文件处理器
-        if log_file:
-            os.makedirs(os.path.dirname(log_file), exist_ok=True)
-            file_handler = logging.FileHandler(log_file, encoding='utf-8')
-            file_handler.setLevel(logging.DEBUG)
-            file_handler.setFormatter(formatter)
-            self.logger.addHandler(file_handler)
+    # 日志格式
+    formatter = logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(name)s - %(filename)s:%(lineno)d\n%(message)s'
+    )
     
-    def info(self, message: str, *args, **kwargs):
-        """信息日志"""
-        self.logger.info(message, *args, **kwargs)
+    # 控制台处理器
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
     
-    def debug(self, message: str, *args, **kwargs):
-        """调试日志"""
-        self.logger.debug(message, *args, **kwargs)
+    # 文件处理器（可选）
+    if log_file:
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        file_handler = logging.FileHandler(log_file, encoding='utf-8')
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
     
-    def warning(self, message: str, *args, **kwargs):
-        """警告日志"""
-        self.logger.warning(message, *args, **kwargs)
-    
-    def error(self, message: str, *args, exc_info=True, **kwargs):
-        """错误日志，默认包含异常信息"""
-        self.logger.error(message, *args, exc_info=exc_info, **kwargs)
-    
-    def exception(self, message: str, *args, **kwargs):
-        """异常日志，自动包含堆栈信息"""
-        self.logger.exception(message, *args, **kwargs)
-    
-    def success(self, message: str, *args, **kwargs):
-        """成功日志（使用INFO级别，但添加✓标记）"""
-        self.logger.info(f"✓ {message}", *args, **kwargs)
-    
-    def step(self, step_name: str, message: str = "", *args, **kwargs):
-        """步骤日志"""
-        separator = "=" * 60
-        self.logger.info(f"\n{separator}", *args, **kwargs)
-        self.logger.info(f"🎯 {step_name}", *args, **kwargs)
-        if message:
-            self.logger.info(f"   {message}", *args, **kwargs)
-        self.logger.info(f"{separator}", *args, **kwargs)
-    
-    def progress(self, current: int, total: int, item_name: str = "项目", *args, **kwargs):
-        """进度日志"""
-        percentage = (current / total * 100) if total > 0 else 0
-        self.logger.info(f"📊 进度: {current}/{total} ({percentage:.1f}%) - {item_name}", *args, **kwargs)
-
-
-# 全局日志实例
-logger = VideoMakerLogger(log_file="logs/video_maker.log")
-
-
-def get_logger(name: str = None) -> VideoMakerLogger:
-    """获取日志器实例"""
-    if name:
-        return VideoMakerLogger(name=name, log_file="logs/video_maker.log")
     return logger
 
 
+# 创建默认日志器
+default_logger = setup_logger('VideoMaker', 'logs/video_maker.log')
+
+
+def get_logger(name: str = None) -> logging.Logger:
+    """获取日志器实例"""
+    if name:
+        return setup_logger(name, 'logs/video_maker.log')
+    return default_logger
+
+
+def format_exception(e: Exception) -> str:
+    """格式化异常信息，包含完整的堆栈跟踪"""
+    # 获取当前异常的完整堆栈
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    if exc_type is None:  # 如果没有活动的异常，使用传入的异常
+        return ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+    return ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+
+
 # 便利函数
-def log_info(message: str, *args, **kwargs):
-    logger.info(message, *args, **kwargs)
+def info(message: str, *args, **kwargs):
+    default_logger.info(message, *args, **kwargs)
 
-def log_debug(message: str, *args, **kwargs):
-    logger.debug(message, *args, **kwargs)
+def debug(message: str, *args, **kwargs):
+    default_logger.debug(message, *args, **kwargs)
 
-def log_warning(message: str, *args, **kwargs):
-    logger.warning(message, *args, **kwargs)
+def warning(message: str, *args, **kwargs):
+    default_logger.warning(message, *args, **kwargs)
 
-def log_error(message: str, *args, exc_info=True, **kwargs):
-    logger.error(message, *args, exc_info=exc_info, **kwargs)
+def error(message: str, e: Optional[Exception] = None, *args, **kwargs):
+    """错误日志，自动包含完整的异常堆栈
+    
+    Args:
+        message: 错误消息
+        e: 可选的异常对象
+    """
+    if e:
+        error_msg = f"{message}\n{format_exception(e)}"
+    else:
+        exc_info = sys.exc_info()
+        if exc_info[0] is not None:  # 如果有活动的异常
+            error_msg = f"{message}\n{''.join(traceback.format_exception(*exc_info))}"
+        else:
+            error_msg = message
+    
+    default_logger.error(error_msg, *args, **kwargs)
 
-def log_exception(message: str, *args, **kwargs):
-    logger.exception(message, *args, **kwargs)
+def exception(message: str, *args, **kwargs):
+    """异常日志，自动包含当前异常的完整堆栈"""
+    exc_info = sys.exc_info()
+    if exc_info[0] is not None:
+        error_msg = f"{message}\n{''.join(traceback.format_exception(*exc_info))}"
+        default_logger.error(error_msg, *args, **kwargs)
+    else:
+        default_logger.error(f"{message} (no active exception)", *args, **kwargs)
 
-def log_success(message: str, *args, **kwargs):
-    logger.success(message, *args, **kwargs)
+def success(message: str, *args, **kwargs):
+    default_logger.info(f"✓ {message}", *args, **kwargs)
 
-def log_step(step_name: str, message: str = "", *args, **kwargs):
-    logger.step(step_name, message, *args, **kwargs)
+def step(step_name: str, message: str = "", *args, **kwargs):
+    """记录步骤信息"""
+    separator = "=" * 60
+    default_logger.info(f"\n{separator}")
+    default_logger.info(f"🎯 {step_name}")
+    if message:
+        default_logger.info(f"   {message}")
+    default_logger.info(separator)
 
-def log_progress(current: int, total: int, item_name: str = "项目", *args, **kwargs):
-    logger.progress(current, total, item_name, *args, **kwargs) 
+def progress(current: int, total: int, item_name: str = "项目", *args, **kwargs):
+    """记录进度信息"""
+    percentage = (current / total * 100) if total > 0 else 0
+    default_logger.info(f"📊 进度: {current}/{total} ({percentage:.1f}%) - {item_name}") 
