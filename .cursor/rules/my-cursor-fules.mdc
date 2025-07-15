@@ -1,0 +1,9 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+1. Python虚拟环境为.venv/bin/python
+2. 使用uv来进行项目管理
+3. 代码简洁明了，避免过渡冗余，仅撰写必要的代码
+4. 应充分阅读整个项目代码再进行开发

@@ -1,163 +1,282 @@
-"""文件操作工具模块"""
+"""
+文件操作工具
+提供文件和目录管理功能
+"""
+
 import os
-import json
 import shutil
-from datetime import datetime
+import hashlib
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import List, Optional, Dict, Any
+import mimetypes
 
-from .exceptions import FileError, FileProcessingError
-
-
-def ensure_directory(directory: str) -> bool:
-    """确保目录存在，如果不存在则创建"""
-    try:
-        os.makedirs(directory, exist_ok=True)
-        return True
-    except Exception as e:
-        raise FileProcessingError(f"创建目录失败: {e}", directory)
+from .exceptions import FileError
 
 
-def safe_filename(filename: str) -> str:
-    """生成安全的文件名"""
-    # 移除不安全字符
-    safe_chars = [c if c.isalnum() or c in '._- ' else '_' for c in filename]
-    return ''.join(safe_chars).strip()
-
-
-def get_unique_filename(directory: str, filename: str) -> str:
-    """生成唯一的文件名"""
-    name, ext = os.path.splitext(filename)
-    counter = 1
-    new_filename = filename
+def ensure_directory(directory_path: str) -> str:
+    """
+    确保目录存在，如果不存在则创建
     
-    while os.path.exists(os.path.join(directory, new_filename)):
-        new_filename = f"{name}_{counter}{ext}"
-        counter += 1
+    Args:
+        directory_path: 目录路径
+        
+    Returns:
+        目录的绝对路径
+    """
+    try:
+        path = Path(directory_path)
+        path.mkdir(parents=True, exist_ok=True)
+        return str(path.absolute())
+    except Exception as e:
+        raise FileError(f"创建目录失败: {directory_path} - {e}")
+
+
+def safe_filename(filename: str, max_length: int = 255) -> str:
+    """
+    生成安全的文件名，移除或替换危险字符
     
-    return new_filename
+    Args:
+        filename: 原始文件名
+        max_length: 最大文件名长度
+        
+    Returns:
+        安全的文件名
+    """
+    # 移除或替换危险字符
+    unsafe_chars = '<>:"/\\|?*'
+    safe_name = filename
+    
+    for char in unsafe_chars:
+        safe_name = safe_name.replace(char, '_')
+    
+    # 移除前后空格和点
+    safe_name = safe_name.strip(' .')
+    
+    # 限制长度
+    if len(safe_name) > max_length:
+        name, ext = os.path.splitext(safe_name)
+        max_name_length = max_length - len(ext)
+        safe_name = name[:max_name_length] + ext
+    
+    # 确保文件名不为空
+    if not safe_name:
+        safe_name = "unnamed_file"
+    
+    return safe_name
 
 
-def copy_file(source_path: str, dest_path: str, create_dirs: bool = True) -> bool:
-    """复制文件"""
+def get_file_hash(file_path: str, algorithm: str = 'md5') -> str:
+    """
+    计算文件的哈希值
+    
+    Args:
+        file_path: 文件路径
+        algorithm: 哈希算法 ('md5', 'sha1', 'sha256')
+        
+    Returns:
+        文件的哈希值
+    """
+    if not Path(file_path).exists():
+        raise FileError(f"文件不存在: {file_path}")
+    
     try:
-        if create_dirs:
-            ensure_directory(os.path.dirname(dest_path))
-        shutil.copy2(source_path, dest_path)
-        return True
+        hash_func = getattr(hashlib, algorithm.lower())()
+        
+        with open(file_path, 'rb') as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_func.update(chunk)
+        
+        return hash_func.hexdigest()
     except Exception as e:
-        raise FileProcessingError(f"复制文件失败: {e}", source_path)
+        raise FileError(f"计算文件哈希失败: {e}")
 
 
-def move_file(source_path: str, dest_path: str, create_dirs: bool = True) -> bool:
-    """移动文件"""
+def get_file_info(file_path: str) -> Dict[str, Any]:
+    """
+    获取文件信息
+    
+    Args:
+        file_path: 文件路径
+        
+    Returns:
+        包含文件信息的字典
+    """
+    path = Path(file_path)
+    
+    if not path.exists():
+        raise FileError(f"文件不存在: {file_path}")
+    
+    stat = path.stat()
+    mime_type, _ = mimetypes.guess_type(str(path))
+    
+    return {
+        'path': str(path.absolute()),
+        'name': path.name,
+        'stem': path.stem,
+        'suffix': path.suffix,
+        'size': stat.st_size,
+        'size_mb': round(stat.st_size / 1024 / 1024, 2),
+        'created_time': stat.st_ctime,
+        'modified_time': stat.st_mtime,
+        'mime_type': mime_type,
+        'is_file': path.is_file(),
+        'is_dir': path.is_dir()
+    }
+
+
+def copy_file(src: str, dst: str, overwrite: bool = False) -> str:
+    """
+    复制文件
+    
+    Args:
+        src: 源文件路径
+        dst: 目标文件路径
+        overwrite: 是否覆盖已存在的文件
+        
+    Returns:
+        目标文件的绝对路径
+    """
+    src_path = Path(src)
+    dst_path = Path(dst)
+    
+    if not src_path.exists():
+        raise FileError(f"源文件不存在: {src}")
+    
+    if dst_path.exists() and not overwrite:
+        raise FileError(f"目标文件已存在: {dst}")
+    
     try:
-        if create_dirs:
-            ensure_directory(os.path.dirname(dest_path))
-        shutil.move(source_path, dest_path)
-        return True
+        # 确保目标目录存在
+        ensure_directory(str(dst_path.parent))
+        
+        # 复制文件
+        shutil.copy2(src, dst)
+        return str(dst_path.absolute())
     except Exception as e:
-        raise FileProcessingError(f"移动文件失败: {e}", source_path)
+        raise FileError(f"复制文件失败: {e}")
+
+
+def move_file(src: str, dst: str, overwrite: bool = False) -> str:
+    """
+    移动文件
+    
+    Args:
+        src: 源文件路径
+        dst: 目标文件路径
+        overwrite: 是否覆盖已存在的文件
+        
+    Returns:
+        目标文件的绝对路径
+    """
+    src_path = Path(src)
+    dst_path = Path(dst)
+    
+    if not src_path.exists():
+        raise FileError(f"源文件不存在: {src}")
+    
+    if dst_path.exists() and not overwrite:
+        raise FileError(f"目标文件已存在: {dst}")
+    
+    try:
+        # 确保目标目录存在
+        ensure_directory(str(dst_path.parent))
+        
+        # 移动文件
+        shutil.move(src, dst)
+        return str(dst_path.absolute())
+    except Exception as e:
+        raise FileError(f"移动文件失败: {e}")
 
 
 def delete_file(file_path: str) -> bool:
-    """删除文件"""
-    try:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        return True
-    except Exception as e:
-        raise FileProcessingError(f"删除文件失败: {e}", file_path)
-
-
-def get_file_size(file_path: str) -> int:
-    """获取文件大小（字节）"""
-    try:
-        return os.path.getsize(file_path)
-    except Exception as e:
-        raise FileProcessingError(f"获取文件大小失败: {e}", file_path)
-
-
-def format_file_size(size_bytes: int) -> str:
-    """格式化文件大小"""
-    for unit in ['B', 'KB', 'MB', 'GB']:
-        if size_bytes < 1024:
-            return f"{size_bytes:.1f}{unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.1f}TB"
-
-
-def list_files_with_extension(directory: str, extension: str) -> List[str]:
-    """列出目录中指定扩展名的所有文件"""
-    if not extension.startswith('.'):
-        extension = '.' + extension
+    """
+    删除文件
     
+    Args:
+        file_path: 文件路径
+        
+    Returns:
+        是否删除成功
+    """
     try:
-        files = []
-        for filename in os.listdir(directory):
-            if filename.lower().endswith(extension.lower()):
-                files.append(os.path.join(directory, filename))
-        return files
+        path = Path(file_path)
+        if path.exists():
+            if path.is_file():
+                path.unlink()
+            elif path.is_dir():
+                shutil.rmtree(path)
+            return True
+        return False
     except Exception as e:
-        raise FileProcessingError(f"列出文件失败: {e}", directory)
+        raise FileError(f"删除文件失败: {e}")
 
 
-def read_json_file(file_path: str) -> Dict[Any, Any]:
-    """读取JSON文件"""
+def list_files(directory: str, pattern: str = "*", recursive: bool = False) -> List[str]:
+    """
+    列出目录中的文件
+    
+    Args:
+        directory: 目录路径
+        pattern: 文件匹配模式
+        recursive: 是否递归搜索子目录
+        
+    Returns:
+        文件路径列表
+    """
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except json.JSONDecodeError as e:
-        raise FileError(f"JSON解析失败: {e}")
+        path = Path(directory)
+        if not path.exists():
+            raise FileError(f"目录不存在: {directory}")
+        
+        if recursive:
+            files = list(path.rglob(pattern))
+        else:
+            files = list(path.glob(pattern))
+        
+        # 只返回文件，排除目录
+        return [str(f) for f in files if f.is_file()]
     except Exception as e:
-        raise FileProcessingError(f"读取JSON文件失败: {e}", file_path)
-
-
-def write_json_file(file_path: str, data: Dict[Any, Any], indent: int = 2) -> bool:
-    """写入JSON文件"""
-    try:
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=indent)
-        return True
-    except Exception as e:
-        raise FileProcessingError(f"写入JSON文件失败: {e}", file_path)
-
-
-def read_text_file(file_path: str) -> str:
-    """读取文本文件"""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return f.read()
-    except Exception as e:
-        raise FileProcessingError(f"读取文本文件失败: {e}", file_path)
-
-
-def write_text_file(file_path: str, content: str) -> bool:
-    """写入文本文件"""
-    try:
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-        return True
-    except Exception as e:
-        raise FileProcessingError(f"写入文本文件失败: {e}", file_path)
-
-
-def get_file_modification_time(file_path: str) -> datetime:
-    """获取文件修改时间"""
-    try:
-        return datetime.fromtimestamp(os.path.getmtime(file_path))
-    except Exception as e:
-        raise FileProcessingError(f"获取文件修改时间失败: {e}", file_path)
+        raise FileError(f"列出文件失败: {e}")
 
 
 def get_directory_size(directory: str) -> int:
-    """获取目录总大小（字节）"""
+    """
+    计算目录大小（字节）
+    
+    Args:
+        directory: 目录路径
+        
+    Returns:
+        目录大小（字节）
+    """
     try:
         total_size = 0
         for dirpath, dirnames, filenames in os.walk(directory):
             for filename in filenames:
                 file_path = os.path.join(dirpath, filename)
-                total_size += os.path.getsize(file_path)
+                if os.path.exists(file_path):
+                    total_size += os.path.getsize(file_path)
         return total_size
     except Exception as e:
-        raise FileProcessingError(f"计算目录大小失败: {e}", directory) 
+        raise FileError(f"计算目录大小失败: {e}")
+
+
+def cleanup_temp_files(temp_dir: str, max_age_hours: int = 24):
+    """
+    清理临时文件
+    
+    Args:
+        temp_dir: 临时目录路径
+        max_age_hours: 文件最大保留时间（小时）
+    """
+    try:
+        import time
+        current_time = time.time()
+        max_age_seconds = max_age_hours * 3600
+        
+        for file_path in list_files(temp_dir, recursive=True):
+            file_age = current_time - os.path.getmtime(file_path)
+            if file_age > max_age_seconds:
+                delete_file(file_path)
+    except Exception as e:
+        raise FileError(f"清理临时文件失败: {e}") 

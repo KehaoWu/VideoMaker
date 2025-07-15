@@ -1,114 +1,106 @@
-"""日志工具模块"""
+"""
+日志记录工具
+提供统一的日志记录功能
+"""
 
 import logging
 import os
-import sys
-import traceback
+from pathlib import Path
 from typing import Optional
-from datetime import datetime
 
 
-def setup_logger(name: str, log_file: Optional[str] = None) -> logging.Logger:
-    """配置并返回日志器"""
+def get_logger(name: str, level: str = "INFO", log_file: Optional[str] = None) -> logging.Logger:
+    """
+    获取配置好的logger实例
+    
+    Args:
+        name: logger名称，通常使用__name__
+        level: 日志级别，默认INFO
+        log_file: 可选的日志文件路径
+        
+    Returns:
+        配置好的logger实例
+    """
     logger = logging.getLogger(name)
     
-    # 如果已经配置过，直接返回
+    # 避免重复添加handler
     if logger.handlers:
         return logger
-        
-    # 设置日志级别
-    logger.setLevel(logging.INFO)
     
-    # 日志格式
+    # 设置日志级别
+    log_level = getattr(logging, level.upper(), logging.INFO)
+    logger.setLevel(log_level)
+    
+    # 创建格式化器
     formatter = logging.Formatter(
-        '%(asctime)s [%(levelname)s] %(name)s - %(filename)s:%(lineno)d\n%(message)s'
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
     )
     
     # 控制台处理器
     console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
     
-    # 文件处理器（可选）
+    # 文件处理器（如果指定了日志文件）
     if log_file:
-        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        # 确保日志目录存在
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        
         file_handler = logging.FileHandler(log_file, encoding='utf-8')
+        file_handler.setLevel(log_level)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
     
     return logger
 
 
-# 创建默认日志器
-default_logger = setup_logger('VideoMaker', 'logs/video_maker.log')
-
-
-def get_logger(name: str = None) -> logging.Logger:
-    """获取日志器实例"""
-    if name:
-        return setup_logger(name, 'logs/video_maker.log')
-    return default_logger
-
-
-def format_exception(e: Exception) -> str:
-    """格式化异常信息，包含完整的堆栈跟踪"""
-    # 获取当前异常的完整堆栈
-    exc_type, exc_value, exc_traceback = sys.exc_info()
-    if exc_type is None:  # 如果没有活动的异常，使用传入的异常
-        return ''.join(traceback.format_exception(type(e), e, e.__traceback__))
-    return ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-
-
-# 便利函数
-def info(message: str, *args, **kwargs):
-    default_logger.info(message, *args, **kwargs)
-
-def debug(message: str, *args, **kwargs):
-    default_logger.debug(message, *args, **kwargs)
-
-def warning(message: str, *args, **kwargs):
-    default_logger.warning(message, *args, **kwargs)
-
-def error(message: str, e: Optional[Exception] = None, *args, **kwargs):
-    """错误日志，自动包含完整的异常堆栈
+def setup_project_logging(log_dir: str = "logs"):
+    """
+    设置项目级别的日志配置
     
     Args:
-        message: 错误消息
-        e: 可选的异常对象
+        log_dir: 日志目录路径
     """
-    if e:
-        error_msg = f"{message}\n{format_exception(e)}"
-    else:
-        exc_info = sys.exc_info()
-        if exc_info[0] is not None:  # 如果有活动的异常
-            error_msg = f"{message}\n{''.join(traceback.format_exception(*exc_info))}"
-        else:
-            error_msg = message
+    # 创建日志目录
+    Path(log_dir).mkdir(exist_ok=True)
     
-    default_logger.error(error_msg, *args, **kwargs)
-
-def exception(message: str, *args, **kwargs):
-    """异常日志，自动包含当前异常的完整堆栈"""
-    exc_info = sys.exc_info()
-    if exc_info[0] is not None:
-        error_msg = f"{message}\n{''.join(traceback.format_exception(*exc_info))}"
-        default_logger.error(error_msg, *args, **kwargs)
-    else:
-        default_logger.error(f"{message} (no active exception)", *args, **kwargs)
-
-def success(message: str, *args, **kwargs):
-    default_logger.info(f"✓ {message}", *args, **kwargs)
-
-def step(step_name: str, message: str = "", *args, **kwargs):
-    """记录步骤信息"""
-    separator = "=" * 60
-    default_logger.info(f"\n{separator}")
-    default_logger.info(f"🎯 {step_name}")
-    if message:
-        default_logger.info(f"   {message}")
-    default_logger.info(separator)
-
-def progress(current: int, total: int, item_name: str = "项目", *args, **kwargs):
-    """记录进度信息"""
-    percentage = (current / total * 100) if total > 0 else 0
-    default_logger.info(f"📊 进度: {current}/{total} ({percentage:.1f}%) - {item_name}") 
+    # 设置根logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    
+    # 清除现有处理器
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # 创建格式化器
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
+    # 控制台处理器
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+    
+    # 文件处理器
+    file_handler = logging.FileHandler(
+        os.path.join(log_dir, 'videomaker.log'), 
+        encoding='utf-8'
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    root_logger.addHandler(file_handler)
+    
+    # 错误日志文件处理器
+    error_handler = logging.FileHandler(
+        os.path.join(log_dir, 'error.log'), 
+        encoding='utf-8'
+    )
+    error_handler.setLevel(logging.ERROR)
+    error_handler.setFormatter(formatter)
+    root_logger.addHandler(error_handler) 

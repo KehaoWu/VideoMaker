@@ -1,7 +1,0 @@
----
-description: 
-globs: *.py
-alwaysApply: false
----
-1. Python虚拟环境为.venv/bin/python
-2. 使用uv来进行项目管理
